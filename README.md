@@ -1,5 +1,10 @@
 # stm32f103c8t6_modbus_read_sync_async
 
+PC13 - Blinking Led
+PB2 - DE/RE for MAX485 chip
+USART2 - Debug output
+USART3 - TTL-RS485 converter
+
 In STM32CubeMX:
 ```
 Start My project from MCU
