@@ -18,6 +18,7 @@ System Core
   Connectivity -> USART3 -> Mode Asynchronous -> Baud Rate 9600
     NVIC Settings -> Enable global interrupt
 PC13 -> GPIO Output
+PB2 -> GPIO Output
 Project Manager -> Toolchain -> Makefile
 Code Generator -> Add necessary library files...
 ```
