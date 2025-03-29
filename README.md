@@ -1,9 +1,12 @@
 # stm32f103c8t6_modbus_read_sync_async
 
+Hardware:
+```
 PC13 - Blinking Led
 PB2 - DE/RE for MAX485 chip
 USART2 - Debug output
-USART3 - TTL-RS485 converter
+USART3 - TTL-RS485 converter with XY-MD02 sensor
+```
 
 In STM32CubeMX:
 ```
