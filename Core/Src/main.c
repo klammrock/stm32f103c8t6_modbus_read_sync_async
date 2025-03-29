@@ -31,6 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define ASYNC_MODE
 #define MODBUS_REQ_LEN 8
 #define MODBUS_RES_LEN 9
 #define MODBUS_TIMEOUT 1000
@@ -50,6 +51,11 @@ static uint8_t modbus_req[] = { 0x01, 0x04, 0x00, 0x01, 0x00, 0x02, 0x20, 0x0B }
 static uint8_t modbus_res[MODBUS_RES_LEN] = { 0 };
 
 static uint8_t msg_buf[256] = { 0 };
+
+static char receive_str[] = "Receive\r\n";
+
+volatile uint8_t tx_complete = 0;
+volatile uint8_t rx_complete = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,6 +131,22 @@ static void printHumArray(uint8_t *arr, int len) {
   msg_buf[++index] = 0;
 }
 
+
+#ifdef ASYNC_MODE
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART3) {
+    tx_complete = 1;
+  }
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART3) {
+    rx_complete = 1;
+  }
+}
+#endif
+
 /* USER CODE END 0 */
 
 /**
@@ -167,15 +189,41 @@ int main(void)
 
   char started_str[] = "Started\r\n";
   char send_str[] = "Send\r\n";
-  char receive_str[] = "Receive\r\n";
 
   HAL_UART_Transmit(&huart2, (uint8_t*)started_str, strlen(started_str), HAL_MAX_DELAY);
 
+  #ifdef ASYNC_MODE
+  HAL_UART_Receive_IT(&huart3, (uint8_t*)modbus_res, MODBUS_RES_LEN);
+  HAL_UART_Transmit_IT(&huart3, (uint8_t*)modbus_req, MODBUS_REQ_LEN);
+  #endif
+
   while (1)
   {
+    #ifndef ASYNC_MODE
     HAL_UART_Transmit(&huart3, (uint8_t*)modbus_req, MODBUS_REQ_LEN, MODBUS_TIMEOUT);
     HAL_UART_Receive(&huart3, (uint8_t*)modbus_res, MODBUS_RES_LEN, MODBUS_TIMEOUT);
+    #endif
 
+    #ifdef ASYNC_MODE
+    if (rx_complete) {
+      rx_complete = 0;
+      HAL_UART_Transmit(&huart2, (uint8_t*)send_str, strlen(send_str), HAL_MAX_DELAY);
+      printByteArray(modbus_req, MODBUS_REQ_LEN);
+      HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+
+      HAL_UART_Transmit(&huart2, (uint8_t*)receive_str, strlen(receive_str), HAL_MAX_DELAY);
+      printByteArray(modbus_res, MODBUS_RES_LEN);
+      HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+  
+      printTempArray(modbus_res, MODBUS_RES_LEN);
+      HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+      printHumArray(modbus_res, MODBUS_RES_LEN);
+      HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+
+      HAL_UART_Receive_IT(&huart3, (uint8_t*)modbus_res, MODBUS_RES_LEN);
+      HAL_UART_Transmit_IT(&huart3, (uint8_t*)modbus_req, MODBUS_REQ_LEN);
+    }
+    #else
     HAL_UART_Transmit(&huart2, (uint8_t*)send_str, strlen(send_str), HAL_MAX_DELAY);
     printByteArray(modbus_req, MODBUS_REQ_LEN);
     HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
@@ -188,6 +236,7 @@ int main(void)
     HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
     printHumArray(modbus_res, MODBUS_RES_LEN);
     HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+    #endif
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
     HAL_Delay(1000);
