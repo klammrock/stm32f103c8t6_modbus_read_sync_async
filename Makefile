@@ -13,7 +13,7 @@
 ######################################
 # target
 ######################################
-TARGET = stm32f103c8t6_modbus_read_sync_async
+TARGET = main
 
 
 ######################################
@@ -22,7 +22,7 @@ TARGET = stm32f103c8t6_modbus_read_sync_async
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -Og
+OPT = -Og -Wall
 
 
 #######################################
@@ -187,7 +187,20 @@ $(BUILD_DIR):
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)
-  
+
+flash: all
+	st-flash --reset write build/$(TARGET).bin 0x8000000
+erase:
+	st-flash --reset erase
+uart:
+	screen /dev/ttyUSB0
+
+openocd:
+	openocd -f interface/stlink.cfg -f target/stm32f1x.cfg
+openocd_flash:
+	openocd -f interface/stlink.cfg -f target/stm32f1x.cfg -c "init; reset halt; flash write_image erase build/main.hex; reset; exit"
+gdb:
+	arm-none-eabi-gdb build/main.elf -ex 'target remote localhost:3333' -ex 'monitor reset halt'
 #######################################
 # dependencies
 #######################################

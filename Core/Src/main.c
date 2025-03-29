@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,7 +31,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define MODBUS_REQ_LEN 8
+#define MODBUS_RES_LEN 9
+#define MODBUS_TIMEOUT 1000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,7 +46,10 @@ UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
+static uint8_t modbus_req[] = { 0x01, 0x04, 0x00, 0x01, 0x00, 0x02, 0x20, 0x0B };
+static uint8_t modbus_res[MODBUS_RES_LEN] = { 0 };
 
+static uint8_t msg_buf[256] = { 0 };
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,6 +63,67 @@ static void MX_USART3_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+static uint8_t getHexValue(uint8_t a) {
+  if (a < 10) {
+    return '0' + a;
+  }
+
+  return 'A' + (a - 10);
+}
+
+static void printByteArray(uint8_t *arr, int len) {
+  int index = -1;
+  for (int i = 0; i < len; ++i) {
+    uint8_t hi = (arr[i] >> 4) & 0xF;
+    uint8_t lo = arr[i] & 0xF;
+    msg_buf[++index] = getHexValue(hi);
+    msg_buf[++index] = getHexValue(lo);
+    msg_buf[++index] = ' ';
+  }
+
+  msg_buf[++index] = '\n';
+  msg_buf[++index] = '\r';
+  msg_buf[++index] = 0;
+}
+
+static void printTempArray(uint8_t *arr, int len) {
+  int index = -1;
+  int v = (arr[3] << 8) + arr[4];
+
+  uint8_t a = v / 100;
+  uint8_t b = (v / 10) % 10;
+  uint8_t c = v % 10;
+
+  msg_buf[++index] = 'T';
+  msg_buf[++index] = '=';
+  msg_buf[++index] = a + '0';
+  msg_buf[++index] = b + '0';
+  msg_buf[++index] = '.';
+  msg_buf[++index] = c + '0';
+  msg_buf[++index] = '\n';
+  msg_buf[++index] = '\r';
+  msg_buf[++index] = 0;
+}
+
+static void printHumArray(uint8_t *arr, int len) {
+  int index = -1;
+  int v = (arr[5] << 8) + arr[6];
+
+  uint8_t a = v / 100;
+  uint8_t b = (v / 10) % 10;
+  uint8_t c = v % 10;
+
+  msg_buf[++index] = 'H';
+  msg_buf[++index] = '=';
+  msg_buf[++index] = a + '0';
+  msg_buf[++index] = b + '0';
+  msg_buf[++index] = '.';
+  msg_buf[++index] = c + '0';
+  msg_buf[++index] = '\n';
+  msg_buf[++index] = '\r';
+  msg_buf[++index] = 0;
+}
 
 /* USER CODE END 0 */
 
@@ -98,8 +164,36 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  char started_str[] = "Started\r\n";
+  char send_str[] = "Send\r\n";
+  char receive_str[] = "Receive\r\n";
+
+  HAL_UART_Transmit(&huart2, (uint8_t*)started_str, strlen(started_str), HAL_MAX_DELAY);
+
   while (1)
   {
+    HAL_UART_Transmit(&huart3, (uint8_t*)modbus_req, MODBUS_REQ_LEN, MODBUS_TIMEOUT);
+    HAL_UART_Receive(&huart3, (uint8_t*)modbus_res, MODBUS_RES_LEN, MODBUS_TIMEOUT);
+
+    HAL_UART_Transmit(&huart2, (uint8_t*)send_str, strlen(send_str), HAL_MAX_DELAY);
+    printByteArray(modbus_req, MODBUS_REQ_LEN);
+    HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+
+    HAL_UART_Transmit(&huart2, (uint8_t*)receive_str, strlen(receive_str), HAL_MAX_DELAY);
+    printByteArray(modbus_res, MODBUS_RES_LEN);
+    HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+
+    printTempArray(modbus_res, MODBUS_RES_LEN);
+    HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+    printHumArray(modbus_res, MODBUS_RES_LEN);
+    HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+    HAL_Delay(1000);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+    HAL_Delay(1000);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
