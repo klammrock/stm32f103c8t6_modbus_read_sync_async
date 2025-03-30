@@ -31,8 +31,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ASYNC_MODE
-#define DE_RE_MODE
+//#define ASYNC_MODE
+//#define DE_RE_MODE
 #define MODBUS_REQ_LEN 8
 #define MODBUS_RES_LEN 9
 #define MODBUS_TIMEOUT 1000
@@ -138,6 +138,10 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART3) {
     tx_complete = 1;
+
+    #ifdef DE_RE_MODE
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+    #endif
   }
 }
 
@@ -195,13 +199,22 @@ int main(void)
 
   #ifdef ASYNC_MODE
   HAL_UART_Receive_IT(&huart3, (uint8_t*)modbus_res, MODBUS_RES_LEN);
+  #ifdef DE_RE_MODE
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET); // Enable Transmit Mode
+  #endif
   HAL_UART_Transmit_IT(&huart3, (uint8_t*)modbus_req, MODBUS_REQ_LEN);
   #endif
 
   while (1)
   {
     #ifndef ASYNC_MODE
+    #ifdef DE_RE_MODE
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET); // Enable Transmit Mode
+    #endif
     HAL_UART_Transmit(&huart3, (uint8_t*)modbus_req, MODBUS_REQ_LEN, MODBUS_TIMEOUT);
+    #ifdef DE_RE_MODE
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+    #endif
     HAL_UART_Receive(&huart3, (uint8_t*)modbus_res, MODBUS_RES_LEN, MODBUS_TIMEOUT);
     #endif
 
@@ -221,7 +234,11 @@ int main(void)
       printHumArray(modbus_res, MODBUS_RES_LEN);
       HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), HAL_MAX_DELAY);
 
+
       HAL_UART_Receive_IT(&huart3, (uint8_t*)modbus_res, MODBUS_RES_LEN);
+      #ifdef DE_RE_MODE
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET); // Enable Transmit Mode
+      #endif
       HAL_UART_Transmit_IT(&huart3, (uint8_t*)modbus_req, MODBUS_REQ_LEN);
     }
     #else
